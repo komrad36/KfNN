@@ -1,0 +1,6 @@
+*
+!.gitignore
+!KfNN.h
+!Makefile
+!main.cpp
+!README.md
