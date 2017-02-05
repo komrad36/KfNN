@@ -234,4 +234,6 @@ void bruteMatch(std::vector<Match>& matches, const void* const __restrict tset, 
 			matches.emplace_back(q, match_idxs[q].x);
 		}
 	}
+
+	delete[] fut;
 }
