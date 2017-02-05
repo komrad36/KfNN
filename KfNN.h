@@ -51,12 +51,7 @@ struct Match {
 	Match(const int _q, const int _t) : q(_q), t(_t) {}
 };
 
-struct uninitialized_int {
-	int x;
-	uninitialized_int() {}
-};
-
-void _bruteMatch_float(const void* __restrict ts, const int tcount, const void* const __restrict qs, std::vector<uninitialized_int>& match_idxs, const float quadrance_thresh, const int start, const int count) {
+void _bruteMatch_float(const void* __restrict ts, const int tcount, const void* const __restrict qs, std::vector<int>& match_idxs, const float quadrance_thresh, const int start, const int count) {
 	const float* __restrict tset = reinterpret_cast<const float* __restrict>(ts);
 	const float* __restrict qset = reinterpret_cast<const float* __restrict>(qs);
 	for (int q = start; q < start + count; ++q) {
@@ -144,12 +139,11 @@ void _bruteMatch_float(const void* __restrict ts, const int tcount, const void* 
 			}
 		}
 
-		if (best_v > quadrance_thresh * second_v) best_i = -1;
-		match_idxs[q].x = best_i;
+		match_idxs[q] = (best_v > quadrance_thresh * second_v) ? -1 : best_i;
 	}
 }
 
- void _bruteMatch_uint8_t(const void* __restrict ts, const int tcount, const void* const __restrict qs, std::vector<uninitialized_int>& match_idxs, const float quadrance_thresh, const int start, const int count) {
+ void _bruteMatch_uint8_t(const void* __restrict ts, const int tcount, const void* const __restrict qs, std::vector<int>& match_idxs, const float quadrance_thresh, const int start, const int count) {
 	 const uint8_t* __restrict tset = reinterpret_cast<const uint8_t* __restrict>(ts);
 	 const uint8_t* __restrict qset = reinterpret_cast<const uint8_t* __restrict>(qs);
 	 for (int q = start; q < start + count; ++q) {
@@ -209,13 +203,13 @@ void _bruteMatch_float(const void* __restrict ts, const int tcount, const void* 
 		}
 
 		if (static_cast<float>(best_v) > quadrance_thresh * static_cast<float>(second_v)) best_i = -1;
-		match_idxs[q].x = best_i;
+		match_idxs[q] = best_i;
 	}
 }
 
 template<bool packed_as_uint8_t>
 void bruteMatch(std::vector<Match>& matches, const void* const __restrict tset, const int tcount, const void* const __restrict qset, const int qcount, const float threshold) {
-	std::vector<uninitialized_int> match_idxs(qcount);
+	std::vector<int> match_idxs(qcount, -1);
 	const int hw_concur = static_cast<int>(std::thread::hardware_concurrency());
 	std::future<void>* const __restrict fut = new std::future<void>[hw_concur];
 	const int stride = (qcount - 1) / hw_concur + 1;
@@ -228,10 +222,12 @@ void bruteMatch(std::vector<Match>& matches, const void* const __restrict tset, 
 	fut[i] = std::async(std::launch::async, packed_as_uint8_t ? _bruteMatch_uint8_t : _bruteMatch_float, tset, tcount, qset, std::ref(match_idxs), quadrance_thresh, start, qcount - start);
 	for (int j = 0; j <= i; ++j) fut[j].wait();
 
+	delete[] fut;
+
 	matches.clear();
 	for (int q = 0; q < qcount; ++q) {
-		if (match_idxs[q].x != -1) {
-			matches.emplace_back(q, match_idxs[q].x);
+		if (match_idxs[q] != -1) {
+			matches.emplace_back(q, match_idxs[q]);
 		}
 	}
 }
